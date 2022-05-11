@@ -1,2 +1,10 @@
-﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+﻿using MAD.Utilities.PBIExtractor;
+using Microsoft.Extensions.Hosting;
+using MIFCore;
+using MIFCore.Http;
+
+IntegrationHost.CreateDefaultBuilder()
+    .UseStartup<Startup>()
+    .UseAspNetCore()
+    .Build()
+    .Run();
