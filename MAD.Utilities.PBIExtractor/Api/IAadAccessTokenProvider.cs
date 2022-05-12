@@ -1,6 +1,6 @@
 ﻿using Microsoft.Identity.Client;
 
-namespace MAD.Utilities.PBIExtractor.Services
+namespace MAD.Utilities.PBIExtractor.Api
 {
     public interface IAadAccessTokenProvider
     {

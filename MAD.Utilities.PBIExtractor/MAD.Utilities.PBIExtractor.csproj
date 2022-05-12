@@ -9,15 +9,21 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Identity.Client" Version="4.43.2" />
-    <PackageReference Include="Microsoft.PowerBI.Api" Version="4.5.0" />
     <PackageReference Include="MIFCore" Version="1.0.2" />
     <PackageReference Include="MIFCore.Hangfire" Version="1.1.0" />
+    <PackageReference Include="Refit" Version="6.3.2" />
+    <PackageReference Include="Refit.HttpClientFactory" Version="6.3.2" />
+    <PackageReference Include="Refit.Newtonsoft.Json" Version="6.3.2" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="settings.default.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Data\" />
   </ItemGroup>
 
 </Project>
