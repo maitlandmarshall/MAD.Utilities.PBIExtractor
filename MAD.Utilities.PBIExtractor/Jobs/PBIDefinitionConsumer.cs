@@ -1,60 +1,62 @@
-﻿using MAD.Utilities.PBIExtractor.Api;
-using MAD.Utilities.PBIExtractor.Api.Models;
+﻿using MAD.Utilities.PBIExtractor.Services;
+using Microsoft.PowerBI.Api.Models;
 
 namespace MAD.Utilities.PBIExtractor.Jobs
 {
     public class PBIDefinitionConsumer
     {
-        private readonly IPBIApi powerBiApi;
+        private readonly PowerBIClientFactory powerBiClientFactory;
 
-        public PBIDefinitionConsumer(IPBIApi powerBiApi)
+        public PBIDefinitionConsumer(PowerBIClientFactory powepowerBiClientFactoryrBiApi)
         {
-            this.powerBiApi = powerBiApi;
+            this.powerBiClientFactory = powepowerBiClientFactoryrBiApi;
         }
 
         public async Task ConsumeDefinitions()
         {
             // Get all workspaces from power bi
             // ignores all personal workspaces by default
-            var modifiedWorkspaces = await this.powerBiApi.GetModifiedWorkspacesAsync();
+            using var powerbi = await this.powerBiClientFactory.Create();
 
-            if (modifiedWorkspaces.Content is null)
+            var modifiedWorkspaces = await powerbi.WorkspaceInfo.GetModifiedWorkspacesWithHttpMessagesAsync(excludePersonalWorkspaces: true);
+
+            if (modifiedWorkspaces.Body is null || modifiedWorkspaces.Body.Count == 0)
                 return;
 
             // Initialize a metadata scan for each workspace
-            var workspaceInfoScanRequest = await this.powerBiApi.PostWorkspaceInfoAsync(new WorkspaceInfoRequest
+            var workspaceInfoScanRequest = await powerbi.WorkspaceInfo.PostWorkspaceInfoWithHttpMessagesAsync(datasourceDetails: true, datasetSchema: true, datasetExpressions: true, requiredWorkspaces: new RequiredWorkspaces
             {
-                Workspaces = modifiedWorkspaces.Content.Select(x => x.Id)
+                Workspaces = modifiedWorkspaces.Body.Select(x => x.Id as Guid?).ToList()
             });
 
-            if (workspaceInfoScanRequest.Content is null)
+            if (workspaceInfoScanRequest.Body is null)
                 return;
 
-            this.ThrowErrorIfNotNull(workspaceInfoScanRequest.Content.Error);
+            this.ThrowErrorIfNotNull(workspaceInfoScanRequest.Body.Error);
 
             // Check the status of the scan and continue once succeeded or throw an error
-            var scanRequest = workspaceInfoScanRequest.Content;
+            var scanRequest = workspaceInfoScanRequest.Body;
             var scanStatus = scanRequest.Status;
 
             do
             {
                 await Task.Delay(1000);
 
-                var scanStatusResponse = await this.powerBiApi.GetScanStatusAsync(scanRequest.Id);
+                var scanStatusResponse = await powerbi.WorkspaceInfo.GetScanStatusWithHttpMessagesAsync(scanRequest.Id.Value);
 
-                this.ThrowErrorIfNotNull(scanStatusResponse.Content.Error);
+                this.ThrowErrorIfNotNull(scanStatusResponse.Body.Error);
 
-                scanStatus = scanStatusResponse.Content.Status;
+                scanStatus = scanStatusResponse.Body.Status;
 
             } while (scanStatus != "Succeeded");
 
             // Get the list of measure definitions from the metadata scan
-            var scanResultResponse = await this.powerBiApi.GetScanResultAsync(scanRequest.Id);
+            var scanResultResponse = await powerbi.WorkspaceInfo.GetScanResultWithHttpMessagesAsync(scanRequest.Id.Value);
 
-            if (scanResultResponse.Content is null || scanResultResponse.Content.Workspaces.Any() == false)
+            if (scanResultResponse.Body is null || scanResultResponse.Body.Workspaces.Any() == false)
                 return;
 
-            var measures = from workspace in scanResultResponse.Content.Workspaces
+            var measures = from workspace in scanResultResponse.Body.Workspaces
                            from dataset in workspace.Datasets
                            from table in dataset.Tables
                            from measure in table.Measures
@@ -63,7 +65,7 @@ namespace MAD.Utilities.PBIExtractor.Jobs
             // Do stuff with measure
         }
 
-        private void ThrowErrorIfNotNull(PowerBIErrorResponseDetail error)
+        private void ThrowErrorIfNotNull(PowerBIApiErrorResponseDetail error)
         {
             if (error is null)
                 return;
